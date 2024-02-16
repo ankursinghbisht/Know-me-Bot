@@ -16,13 +16,14 @@ tokenizer = BloomTokenizerFast.from_pretrained(name)
 model = BloomForCausalLM.from_pretrained(name)
 # Initialize SpellChecker
 spell = SpellChecker()
+prev_ans = None
 
 generator = pipeline('text-generation',
                      model=model,
                      tokenizer=tokenizer,
                      do_sample=True,
                      temperature=1,  # Adjust temperature for creativity
-                     max_length=512,
+                     max_length=256,
                      truncation=True)
 
 
@@ -32,7 +33,10 @@ def answer(user_input):
         corrected_input = ' '.join([spell.correction(word) for word in user_input.split()])
 
         # Generate model response
-        prompt = f"Given the question {corrected_input}, what is the answer? Answer: "
+        if prev_ans is None:
+            prompt = f"Question: {corrected_input} With no context, what is the answer? Answer: "
+        else:
+            prompt = f"Question: {corrected_input} In the context of {prev_ans}, what is the answer? Answer: "
         result = generator(prompt)
 
         generated_answer = result[0]['generated_text'][len(prompt):].strip()
@@ -65,7 +69,7 @@ if prompt := st.chat_input("What is up?"):
         message_placeholder = st.empty()
         full_response = answer(prompt)
         answer = ""
-
+        prev_ans = full_response
         # Split response into words and simulate typing
         words = full_response.split()
         typed_response = ""
